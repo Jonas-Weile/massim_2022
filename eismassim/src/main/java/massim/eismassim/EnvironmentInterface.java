@@ -96,7 +96,7 @@ public class EnvironmentInterface extends EIDefaultImpl implements Runnable{
             if (throwExceptions)
                 throw new PerceiveException("no valid connection");
             else
-                return new PerceptUpdate();
+            	((ConnectedEntity) e).establishConnection();
         }
         return e.getPercepts();
     }
