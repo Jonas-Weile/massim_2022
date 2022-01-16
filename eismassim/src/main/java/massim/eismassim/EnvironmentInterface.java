@@ -53,6 +53,9 @@ public class EnvironmentInterface extends EIDefaultImpl implements Runnable{
 
     public void init(Map<String, Parameter> parameters) throws ManagementException {
         super.init(parameters);
+        if (parameters.containsKey("configFile")) {
+        	configFile = ((Identifier) parameters.get("configFile")).getValue();
+        }
         setup();
     }
 
