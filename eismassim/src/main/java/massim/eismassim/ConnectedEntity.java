@@ -278,7 +278,7 @@ public abstract class ConnectedEntity extends Entity {
      * @param action the action to perform
      * @throws ActException if the action could not be sent
      */
-    void performAction(Action action) throws ActException{
+    synchronized void performAction(Action action) throws ActException{
 
         if (!connected) {
             if (throwExceptions)
