@@ -81,7 +81,7 @@ A zone has a center and a radius. There are two types of zones in the game.
 
 * __Goal zones__: Agents have to be on a __goal__ cell in order to be allowed to submit a task.
   * A goal zone moves to another location after a certain number of tasks has been submitted inside.
-* __Role zones__: Agents have to be on a __role__ cell in order to use the __adopt__ action.
+* __Role zones__: Agents have to be on a __role__ cell in order to use the __adopt/adapt__ action.
   * Role zones stay the same for the whole simulation.
 
 ### Events
@@ -103,36 +103,66 @@ When a clear event happens, a certain area is marked. The timing and size of an 
 * `create` - the bounds for how many obstacles are created (additional to the number of objects destroyed by the event)
 * `perimeter` - an additional radius where new obstacles may be created (added to the event's radius)
 
-### Norms
+## Norms
 
-Norms introduce dynamic small changes in the rules of the game. When a norm is in place, an agent must decide whether to follow or violate it. 
+Norms introduce dynamically small changes in the rules of the game. When a norm is in place, an agent must decide whether to follow or violate it. 
 In the latter case, the violator is punished with a decrease in its energy level. 
 Before policing a norm, the game's officer announces it to all agents.
 After a small number of steps, the norm becomes active.
 We call an *approved norm* a norm that is either announced or active.
-Each norm regulates a specific *subject*, that is, a characteristic of the scenario.
-Moreover, a norm regulates either an agent (individual level) or a team (team level).
-For instance, at the team level, a norm may state that at most 2 agents may adopt the role constructor. 
+Each norm regulates on a specific *subject*, that is, a characteristic of the scenario.
+Moreover, a norm regulates on what either an agent (individual level) or a team (team level) can do.
+For instance, at the team level, a norm might state that at most 2 agents may adopt a given role. 
 
-`Config: match.regulation.*`:
+### Configuration
+
+`Config: match.regulation.*`
 
 Regarding the general regulation:
-* `simultaneous` - how many norms are allowed to be in the state approved at the same step.
+* `simultaneous` - how many norms are allowed to be in the state approved at the same step
 * `chance` - the chance for a norm to be created (in %)
 * `subjects` - the subjects a norm may regulate
 
 Regarding each specific subject:
 * `name` - It must be one of the following options: 
-  * Carry: the agents will be prohibited to carry some quantity of things
-  * RoleIndividual: the agents are prohibited to be of a particular role
-  * RoleTeam: the team is prohibited to have many agents of a particular role.
+  * Carry: the agents are prohibited to carry a certain quantity of things
+  * Adopt: the teams are prohibited to have more than a specified number of agents adopting a particular role.
 * `announcement` - the number of steps of the announcement period
 * `duration` - the number of steps the norm stays active after the announcement period is over
 * `punishment` - the number of energy points an agent loses in case it violates a norm
 * `weight` - a weight of a subject to be chosen. For instance, if subject Carry has weight of 15 and subject RoleIndividual has weight of 15, then each subject has probability of 50% of being selected
-* `optional` - subject dependent information to help specifing what a norm should regulate. 
-  * Carry: 
-    * `quantity` - the number of things an agent may carry
+* `optional` - subject dependent information to help specifing on what a norm should regulate. 
+
+### Selected Subjects
+
+#### Carrying Blocks
+ 
+Establishes an upper bound on the number of blocks (regardless of the types of the blocks) that an agent can carry.
+
+*Additional Configuration*
+  * `quantity` - the lower and upper bound on the number of things an agent may carry
+
+*Algorithmic View*:
+  * Select a random upper bound given the bounds specified in the config file;
+  * Apply that bound to **all** blocks;
+    * E.g., the bound is set to 2, and an agent is carrying one block of each of the following types `b0`, `b1`, and `b2`. Therefore, punishment is applicable to that agent. 
+  * Punish every agent that does not follow the norm.
+
+#### Adopting Roles
+Establishes an upper bound per team on the number of agents that can play a chosen role.
+
+*Additional Configuration*
+  * `playing` - the percentage of agents that can play a given role
+
+*Algorithmic View*:
+  * If the percentage is set to `0%`, then no agent can play that role
+  * Count the number of agents adopting each role and set the probability of choosing a role to be prohibited accordingly.
+  * Count the number of agents in each team that is adopting the selected role; select the greatest number.
+  * Set the number of agents allowed to play the selected role (per team) according to a percentage defined in the configuration file.
+    * E.g., the role `explorer` has been selected, and `20` agents are playing this role currently (`5` agents in Team A and `15` agents in Team B). The percentage has been set to `50%`, then the norm will allow `8` agents per team to play the role of `explorer`.
+  * Punish all agents in a team that are not following the Norm. 
+    * E.g., Team B has `9` agents playing the role of `explorer`; thus the `9` agents will be punished
+
 
 ## Tasks
 
@@ -207,7 +237,7 @@ Detaches a thing from the agent. Only the connection between the agent and the t
 
 ### rotate
 
-Rotates the agent (and all attached things) 90 degrees in the given direction. For each attached thing, all _intermediate positions_ for the rotation have to be free as well. For any thing, the intermediate rotation positions are those, which have the same distance to the agent as the thing and are between the thing's current and target positions.
+Rotates the agent (and all attached things) 90 degrees in the given direction. For each attached thing, its _final position_ after the rotation has to be free.
 
 | No  | Parameter | Meaning                                                                                |
 |-----|-----------|----------------------------------------------------------------------------------------|
@@ -312,7 +342,7 @@ the `failed_random` result.
 
 ### adopt
 
-Adopts a role if the agent is in a role zone.
+Adopts a role if the agent is in a role zone. If *adopt* is a keyword in your agent platform, you can use *adapt* instead.
 
 | No  | Parameter | Meaning                        |
 |-----|-----------|--------------------------------|

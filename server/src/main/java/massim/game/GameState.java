@@ -1,7 +1,9 @@
 package massim.game;
 
 import massim.config.TeamConfig;
-import massim.game.environment.*;
+import massim.game.environment.ClearEvent;
+import massim.game.environment.Grid;
+import massim.game.environment.Task;
 import massim.game.environment.positionable.*;
 import massim.game.environment.zones.Zone;
 import massim.game.environment.zones.ZoneType;
@@ -26,7 +28,6 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -64,6 +65,8 @@ public class GameState {
     private final int eventCreatePerimeter;
     private final int[] clearDamage;
 
+    private final boolean perceiveAbsolutePosition;
+
     private final Map<String, JSONArray> stepEvents = new HashMap<>();
 
     private final JSONArray logEvents = new JSONArray();
@@ -89,6 +92,8 @@ public class GameState {
         var dispenserBounds = ConfigUtil.getBounds(config, "dispensers");
 
         clearDamage = JSONUtil.getIntArray(config, "clearDamage");
+
+        this.perceiveAbsolutePosition = ConfigUtil.getBool(config, "absolutePosition", false);
 
         var taskConfig = config.getJSONObject("tasks");
         this.taskMaxDuration = ConfigUtil.getBounds(taskConfig, "maxDuration");
@@ -170,7 +175,7 @@ public class GameState {
         return defaultRole;
     }
 
-    Map<String, Team> getTeams() {
+    public Map<String, Team> getTeams() {
         return this.teams;
     }
 
@@ -253,6 +258,7 @@ public class GameState {
                 if (x == null || y == null || type.isEmpty()) break;
                 if (type.equalsIgnoreCase("obstacle")) grid.obstacles().create(Position.of(x, y));
                 else if (type.equalsIgnoreCase("goal")) grid.addZone(ZoneType.GOAL, Position.of(x, y), 1);
+                else if (type.equalsIgnoreCase("role")) grid.addZone(ZoneType.ROLE, Position.of(x, y), 1);
                 break;
 
             default:
@@ -359,20 +365,20 @@ public class GameState {
         List<Record> records = officer.getArchive(this.step);
 
         for (var entity : this.grid.entities().getAll()) {
-            var pos = entity.getPosition();
+            var agentPos = entity.getPosition();
             var visibleThings = new HashSet<Thing>();
             var attachedThings = new ArrayList<Position>();
             var goalZones = new ArrayList<Position>();
             var roleZones = new ArrayList<Position>();
-            for (var currentPos: pos.spanArea(entity.getVision())){
+            for (var currentPos: agentPos.spanArea(entity.getVision())){
                 for (var thing : this.grid.getEverythingAt(currentPos)) {
-                    visibleThings.add(thing.toPercept(pos));
+                    visibleThings.add(thing.toPercept(agentPos));
                     if (thing != entity && thing instanceof Attachable a && a.isAttachedToAnotherEntity()){
-                        attachedThings.add(thing.getPosition().relativeTo(pos));
+                        attachedThings.add(thing.getPosition().relativeTo(agentPos));
                     }
                 }
-                if (this.grid.isInZone(ZoneType.GOAL, pos)) goalZones.add(pos);
-                if (this.grid.isInZone(ZoneType.ROLE, pos)) roleZones.add(pos);
+                if (this.grid.isInZone(ZoneType.GOAL, currentPos)) goalZones.add(currentPos.relativeTo(agentPos));
+                if (this.grid.isInZone(ZoneType.ROLE, currentPos)) roleZones.add(currentPos.relativeTo(agentPos));
             }
             List<String> punishment = records.stream()
                                                 .filter(p -> p.entity().getAgentName().equals(entity.getAgentName()))
@@ -394,7 +400,8 @@ public class GameState {
                     entity.isDeactivated(),
                     punishment,
                     goalZones,
-                    roleZones
+                    roleZones,
+                    this.perceiveAbsolutePosition? entity.getPosition() : null
             ));
         }
         return result;
@@ -628,11 +635,11 @@ public class GameState {
         while (requirements.size() < size) {
             double direction = RNG.nextDouble();
             if (direction <= .3)
-                lastPosition = lastPosition.west();
+                lastPosition = Position.of(lastPosition.x - 1, lastPosition.y);
             else if (direction <= .6)
-                lastPosition = lastPosition.east();
+                lastPosition = Position.of(lastPosition.x + 1, lastPosition.y);
             else
-                lastPosition = lastPosition.south();
+                lastPosition = Position.of(lastPosition.x, lastPosition.y + 1);
             requirements.put(lastPosition, typeList.get(RNG.nextInt(typeList.size())));
         }
         this.createTask(name, duration, iterations, requirements);

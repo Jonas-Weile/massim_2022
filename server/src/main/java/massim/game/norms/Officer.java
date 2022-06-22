@@ -27,7 +27,7 @@ public class Officer {
         private final int maxAnnouncement;
         private final int minPunishment;
         private final int maxPunishment;
-        private JSONObject additionalInfo;
+        private java.lang.Record additionalInfo;
         public NormTemplate(JSONObject template, double weight) {   
             this.name = template.getString("name");      
             this.chance = weight;
@@ -37,9 +37,9 @@ public class Officer {
             this.maxAnnouncement = template.getJSONArray("announcement").getInt(1);
             this.minPunishment = template.getJSONArray("punishment").getInt(0);
             this.maxPunishment = template.getJSONArray("punishment").getInt(1);
-            this.additionalInfo = template.optJSONObject("optional");
-            if (this.additionalInfo==null)
-                this.additionalInfo = new JSONObject();
+
+            Norm norm = FactoryNorms.valueOf(this.name).factory.get();
+            this.additionalInfo = norm.checkTemplate(template.optJSONObject("optional", new JSONObject()));
         }
         public String getName() {
             return name;
@@ -65,7 +65,7 @@ public class Officer {
         public double getChance() {
             return chance;
         }
-        public JSONObject getAdditionalInfo() {
+        public java.lang.Record getAdditionalInfo() {
             return additionalInfo;
         }
     }
@@ -76,23 +76,22 @@ public class Officer {
     private final double chance;
     private double accumulatedWeight = 0;
     private final Map<String, Norm> norms;
-    private final Map<String, NormTemplate> templates;
     private final Map<Integer, ArrayList<Record>> archive;
+    private final ArrayList<NormTemplate> templates;
 
     public Officer(JSONObject config) {
         this.norms = new HashMap<>();
-        this.templates = new HashMap<>();
         this.archive = new HashMap<>();
+        this.templates = new ArrayList<>();
         this.maxActiveNorms = config.getInt("simultaneous");
         this.chance = config.getDouble("chance")/100;
 
         JSONArray norms = config.getJSONArray("subjects");
         for (int i=0; i < norms.length(); i++) {
             JSONObject temp = norms.getJSONObject(i);
-            String name = temp.getString("name");
             this.accumulatedWeight += temp.getDouble("weight");
-            this.templates.put(name, new NormTemplate(temp, this.accumulatedWeight));
-            Log.log(Log.Level.NORMAL, "Template of norm " + name + " added");         
+            this.templates.add(new NormTemplate(temp, this.accumulatedWeight));
+            Log.log(Log.Level.NORMAL, "Template of norm " + temp.getString("name") + " added");         
         }    
     }
 
@@ -136,7 +135,7 @@ public class Officer {
             return;        
 
         double p = RNG.nextDouble() * this.accumulatedWeight;
-        for (NormTemplate temp : this.templates.values()) {
+        for (NormTemplate temp : this.templates) {
             if (temp.getChance() >= p) {
                 Norm norm = createNorm(step, temp);
                 norm.bill(state, temp.getAdditionalInfo());
