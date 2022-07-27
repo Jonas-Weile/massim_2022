@@ -125,28 +125,40 @@ Regarding the general regulation:
 
 Regarding each specific subject:
 * `name` - It must be one of the following options: 
-  * Carry: the agents are prohibited to carry a certain quantity of things
+  * Carry: the agents are prohibited to carry a certain number of attachable things;
   * Adopt: the teams are prohibited to have more than a specified number of agents adopting a particular role.
 * `announcement` - the number of steps of the announcement period
 * `duration` - the number of steps the norm stays active after the announcement period is over
 * `punishment` - the number of energy points an agent loses in case it violates a norm
-* `weight` - a weight of a subject to be chosen. For instance, if subject Carry has weight of 15 and subject RoleIndividual has weight of 15, then each subject has probability of 50% of being selected
+* `weight` - an integer value that dictates the probability of selecting the subject. For instance, if subject SubjectA has weight of 15 and subject SubjectB has weight of 15, then each subject has probability of 50% of being selected.
 * `optional` - subject dependent information to help specifing on what a norm should regulate. 
 
 ### Selected Subjects
 
-#### Carrying Blocks
+#### Carrying Attachable Things
  
-Establishes an upper bound on the number of blocks (regardless of the types of the blocks) that an agent can carry.
+Establishes an upper bound on the number of attachable things that an agent can carry.
+An attachable thing is either an *entity*, a *block*, or an *obstacle*.
 
 *Additional Configuration*
   * `quantity` - the lower and upper bound on the number of things an agent may carry
 
 *Algorithmic View*:
   * Select a random upper bound given the bounds specified in the config file;
-  * Apply that bound to **all** blocks;
+  * Apply that bound to **all** attachable things;
     * E.g., the bound is set to 2, and an agent is carrying one block of each of the following types `b0`, `b1`, and `b2`. Therefore, punishment is applicable to that agent. 
   * Punish every agent that does not follow the norm.
+
+*Requeriment Percept*: 
+
+For the 16th MAPC, the *carry* subject (see the [step percept description](#step-percept)) has a **single** requirement and its correspondind percept is in the form of
+
+```
+"requirements": [{ "type": "block", "name": "any", "quantity": 1 }]
+```
+- Property `type` is set to `block`.
+- Property `name` is always set to `any`. That means, **anything** attached to an agent counts towards the maximum number of attachable things it may carry.
+- Property `quantity` is an integer value between the configured range. 
 
 #### Adopting Roles
 Establishes an upper bound per team on the number of agents that can play a chosen role.
@@ -163,6 +175,16 @@ Establishes an upper bound per team on the number of agents that can play a chos
   * Punish all agents in a team that are not following the Norm. 
     * E.g., Team B has `9` agents playing the role of `explorer`; thus the `9` agents will be punished
 
+*Requeriment Percept*: 
+
+For the 16th MAPC, the *adopt* subject (see the [step percept description](#step-percept)) has a **single** requirement and its correspondind percept is in the form of
+
+```
+"requirements": [{ "type": "role", "name": "default", "quantity": 5 }]
+```
+- Property `type` is set to `role`.
+- Property `name` is one of the available roles.
+- Property `quantity` is an integer representing the maximum number of agents that can adopt that role in a team.
 
 ## Tasks
 
@@ -309,7 +331,7 @@ Submit the pattern of things that are attached to the agent to complete a task.
 
 | Failure Code  | Reason                                                                                                 |
 |---------------|--------------------------------------------------------------------------------------------------------|
-| failed_target | No _active_ task could be associated with first parameter, or task has not been accepted by the agent. |
+| failed_target | No _active_ task could be associated with first parameter.                                             |
 | failed        | One or more of the requested blocks are missing OR the agent is not on a goal terrain.                 |
 
 ### clear
@@ -497,12 +519,6 @@ Example (complete request-action message):
                "y": -1,
                "type": "marker",
                "details" : "clear"
-            },
-            {
-               "x": 3,
-               "y": 4,
-               "details": "",
-               "type": "taskboard"
             }
          ],
          "goalZones": [[1,1],[1,2],[4,0]],
@@ -545,7 +561,7 @@ Example (complete request-action message):
               "level" : "individual",
               "requirements": [
                   {
-                    "type": "carry",
+                    "type": "block",
                     "name": "any",
                     "quantity": 1
                   }
@@ -568,7 +584,6 @@ Example (complete request-action message):
 * __lastActionParams__: the parameters of that action
 * __energy__: the agent's current energy level
 * __deactivated__: whether the agent is deactivated
-* __task__: the most recently accepted task (by the agent)
 * __things__: things in the simulation visible to the agent
   * __x/y__: position of the thing _relative_ to the agent
   * __type__: the type of the thing (entity, block, dispenser, marker,...)
@@ -594,7 +609,7 @@ Example (complete request-action message):
           * __energy__: current energy of the agent
     * if __hit__:
       * __origin__: the position where the damage came from (might be off if the agent moved during the previous step)
-* __task__: a task that is currently active
+* __tasks__: a task that is currently active
   * __name__: the task's identifier
   * __start__: the first step during which the task can be completed
   * __reward__: the score points rewarded for completing the job
@@ -602,16 +617,16 @@ Example (complete request-action message):
     * __x/y__: the relative position of the required block
     * __type__: the type of the required block
     * __details__: currently not used
-* __norm__: a norm that is currently approved
+* __norms__: a norm that is currently approved
   * __name__: the norm's identifier
   * __start__: the step in which a norm becomes active
   * __until__: the step in which a norm becomes inactive
-  * __level__: whether the norm applies to individual agents or a team of agents
-  * __requirements__: what the norm regulates
-    * __type__: the subject of the norm
-    * __name__: the precise name the subject refers to, e.g., the role *constructor*
-    * __quantity__: the maximum quantity that can be carried/adopted
-* __violations__: the list of norms an agent is violating at the current step
+  * __level__: one of ["individual", "team"]
+  * __requirements__: what the norm regulates (see [each norm subject](#selected-subjects))
+    * __type__: one of ["block", "role"]
+    * __name__: one of ["any", ASingleRole], where `ASingleRole` is one of the available roles, e.g., the role *constructor*
+    * __quantity__: an integer representing the maximum number that can be carried/adopted
+* __violations__: a list of norms an agent is violating at the current step
 * __attached__: an array of positions - each position represents a thing that is (directly or indirectly) attached to an entity
 
 ## Configuration

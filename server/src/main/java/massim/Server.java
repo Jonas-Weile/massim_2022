@@ -70,7 +70,7 @@ public class Server {
                         i--;
                     }
                     break;
-                case "--monitor":
+                case "--monitor", "-m":
                     if (i + 1 < args.length) {
                         try {
                             monitorPort = Integer.parseInt(args[++i]);
@@ -352,11 +352,11 @@ public class Server {
             try {
                 String[] inputWords = inputManager.take().split(" ");
                 switch (inputWords[0]) {
-                    case "pause":
+                    case "pause", "p":
                         paused = true;
                         Log.log(Log.Level.NORMAL, "Simulation paused. Type further commands or 'continue' to proceed.");
                         break;
-                    case "continue":
+                    case "continue", "c":
                         paused = false;
                         break;
                     default:
@@ -493,7 +493,7 @@ public class Server {
                 if(teamList != null){
                     Set<TeamConfig> parsedTeamNames = new HashSet<>();
                     for (int j = 0; j < config.teamsPerMatch; j++){
-                        String team = teamList.optString(i, "");
+                        String team = teamList.optString(j, "");
                         if (team.equals("")) break;
                         TeamConfig teamConfig = teamMap.get(team);
 
